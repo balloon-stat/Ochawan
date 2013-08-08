@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 title = "放送タイトル"
 content = u"""放送詳細"""
 
