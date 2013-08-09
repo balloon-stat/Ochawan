@@ -204,7 +204,7 @@ class MainWindow(gtk.Window):
 
     def on_retake_activated(self, widget):
         self.proc.stdin.write("q")
-        subprocess.check_call(["./takeWak.py"])
+        subprocess.check_call(["./ochawan.py"])
         self.end_application(self)
 
     def on_reconn_activated(self, widget):
@@ -229,7 +229,7 @@ class MainWindow(gtk.Window):
 
     def prependRow(self, no, uid, comm):
         print comm
-        if comm == "/disconnect":
+        if comm == "/disconnect\n":
             self.proc.stdin.write("q")
             print "disconnect"
         name = self.view.showName(uid)
