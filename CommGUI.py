@@ -72,9 +72,9 @@ class CommListView(gtk.TreeView):
         (model, iterr) = self.get_selection().get_selected()
         text = model.get_value(iterr, self.COLUMN_COMM)
         start = text.find("http://")
-        end = text.find(" ")
+        end = text.rfind(" ")
         if end == -1 or start > end:
-            end = text.find("　")
+            end = text.rfind("　")
         if end == -1 or start > end:
             end = len(text)
         subprocess.call(["firefox", text[start:end]])
