@@ -23,10 +23,10 @@ const char * const utf8_skip = utf8_skip_data;
 
 
 void toHira(char* str);
-int istalk(unsigned char* word);
+int istalk(unsigned char* words);
 int isQues(unsigned char* str);
 void replaceSign(unsigned char* str);
-void replaceGrass(char* str);
+void replaceGrass(unsigned char* str);
 
 void toHira(char* str) {
     int len, cur, isquestion;
@@ -36,8 +36,6 @@ void toHira(char* str) {
     replaceSign(str);
     replaceGrass(str);
     printf("rgr_str:%s\n", str);
-    isquestion = isQues(str);
-    //printf("isques:%d\n", isquestion);
 
     if (anthy_init()) {
         fprintf(stderr, "anthy init error\n");
@@ -89,24 +87,30 @@ void toHira(char* str) {
     anthy_release_context(ctx);
 }
 
-int istalk(unsigned char* word) {
-    if (word[0] == '?' || word[0] == '/' || word[0] == 0x27 || word[0] == '+' ||
-            word[0] == ',') // || word[0] == ';' ) // 0x27 = '
-        return 1;
-    else if (word[0] == 0xef && word[1] == 0xbc && word[2] == 0x9f) //「？」
-        return 1;
-    else if (word[0] != 0xe3)
-        return 0;
-    else if (word[1] == 0x80 && (word[2] == 0x81 || word[2] == 0x82)) // 、。
-        return 1;
-    else if (word[1] == 0x83 && word[2] == 0xbc) // ー
-        return 1;
-    else if (word[1] == 0x81 && word[2] > 0x80) // あ～
-        return 1;
-    else if (word[1] == 0x82 && word[2] < 0x94) // ～ん
-        return 1;
-    else
-        return 0;
+int istalk(unsigned char* words) {
+    unsigned char* word = words;
+    while (*word) {
+        if (word[0] == '?' || word[0] == '/' || word[0] == 0x27 || word[0] == '+' ||
+                word[0] == ',') // || word[0] == ';' ) // 0x27 = '
+            ;
+        else if (word[0] == 0xef && word[1] == 0xbc && word[2] == 0x9f) //「？」
+            ;
+        else if (word[0] != 0xe3)
+            return 0;
+        else if (word[1] == 0x80 && (word[2] == 0x81 || word[2] == 0x82)) // 、。
+            ;
+        else if (word[1] == 0x83 && word[2] == 0xbc) // ー
+            ;
+        else if (word[1] == 0x81 && word[2] > 0x80) // あ～
+            ;
+        else if (word[1] == 0x82 && word[2] < 0x94) // ～ん
+            ;
+        else
+            return 0;
+
+        word = utf8_next_char(word);
+    }
+    return 1;
 }
 
 void replaceSign(unsigned char* str) {
@@ -126,10 +130,11 @@ void replaceSign(unsigned char* str) {
     }
 }
 
-void replaceGrass(char* str) {
-    char buf[BUFSIZE];
-    char* str_p = buf;
-    char* next = NULL;
+void replaceGrass(unsigned char* str) {
+    unsigned char buf[BUFSIZE];
+    unsigned char* str_p = buf;
+    unsigned char* next = NULL;
+    int prev_is_w = 0;
     int len;
 
     strcpy(buf, str);
@@ -137,13 +142,17 @@ void replaceGrass(char* str) {
         next = utf8_next_char(str_p);
         len = next - str_p;
 
-        if (*str_p == 'w') {
-            memcpy(str, "わら", 6);
-            str += 6;
+        if (*str_p == 'w' || str_p[0] == 0xef && str_p[1] == 0xbd && str_p[2] == 0x97) {
+            if (prev_is_w < 2) {
+                memcpy(str, "わら", 6);
+                str += 6;
+                prev_is_w++;
+            }
         }
         else {
             memcpy(str, str_p, len);
             str += len;
+            prev_is_w = 0;
         }
 
         str_p = next;
@@ -151,21 +160,3 @@ void replaceGrass(char* str) {
     *str = '\0';
 }
 
-int isQues(unsigned char* str) {
-    unsigned char * str_p;
-    int ret;
-    str_p = str;
-    while(*str_p) {
-        if (*str_p == '\n')
-            break;
-        if (*str_p == '?')
-            ret = 1;
-        else if (str_p[0] == 0xef && str_p[1] == 0xbc && str_p[2] == 0x9f) //「？」
-            ret = 1;
-        else
-            ret = 0;
-
-        str_p = utf8_next_char(str_p);
-    }
-    return ret;
-}

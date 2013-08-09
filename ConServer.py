@@ -125,7 +125,7 @@ class ConServer:
 
                 if line.startswith("<chat"):
                     elem = fromstring(line)
-                    text = self.prepr(elem.text) + "\n"
+                    text = elem.text + "\n"
                     proc(elem.get("no"), elem.get("user_id"), text)
                     if text == "/disconnect\n":
                         self.bym.proc("終了しました")
@@ -133,10 +133,6 @@ class ConServer:
                         exit()
                     self.bym.proc(text.encode("utf-8"))
                     self.count = int(elem.get("no"))
-
-    def prepr(self, comm):
-        ret = re.sub(r'ww+', 'ww', comm)
-        return ret
 
 
 class UserNameParser(HTMLParser):
