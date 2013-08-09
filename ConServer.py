@@ -1,6 +1,7 @@
 #! /usr/bin/python
 # -*- encoding: utf-8 -*-
 
+import re
 import sys
 import subprocess
 import urllib
@@ -124,7 +125,7 @@ class ConServer:
 
                 if line.startswith("<chat"):
                     elem = fromstring(line)
-                    text = elem.text + "\n"
+                    text = self.prepr(elem.text) + "\n"
                     proc(elem.get("no"), elem.get("user_id"), text)
                     if text == "/disconnect\n":
                         self.bym.proc("終了しました")
@@ -132,6 +133,11 @@ class ConServer:
                         exit()
                     self.bym.proc(text.encode("utf-8"))
                     self.count = int(elem.get("no"))
+
+    def prepr(self, comm):
+        ret = re.sub(r'ww+', 'ww', comm)
+        return ret
+
 
 class UserNameParser(HTMLParser):
 
@@ -174,6 +180,8 @@ class LvidParser(HTMLParser):
                             self.lvid = j[1].replace("http://live.nicovideo.jp/watch/", "").replace("?ref=my_live", "")
 """
 if __name__ == '__main__':
-    con = ConServer()
-    con.takeUserName("0")
+    if len(sys.argv) != 2:
+        print "use: ConServer.py lvxxxxxx"
+    con = ConServer(sys.argv[1])
+    con.takeComments()
 """

@@ -20,7 +20,7 @@ class CommListView(gtk.TreeView):
     def __init__(self, *args, **kwargs):
         gtk.TreeView.__init__(self, *args, **kwargs)
         self.udic = None
-        self.nmdic = {}
+        self.nmdic = None
         self.renderer_num = gtk.CellRendererText()
         self.renderer_uid = gtk.CellRendererText()
         self.renderer_comm = gtk.CellRendererText()
@@ -72,8 +72,6 @@ class CommListView(gtk.TreeView):
         (model, iterr) = self.get_selection().get_selected()
         text = model.get_value(iterr, self.COLUMN_COMM)
         start = text.find("http://")
-        if end == -1:
-            return
         end = text.find(" ")
         if end == -1:
             end = text.find("　")
@@ -129,6 +127,7 @@ class CommListView(gtk.TreeView):
 
 class MainWindow(gtk.Window):
     def __init__(self, *args, **kwargs):
+        self.proc = None
         gtk.Window.__init__(self, *args, **kwargs)
 
         self.entry = gtk.Entry()
@@ -155,11 +154,25 @@ class MainWindow(gtk.Window):
         self.view = CommListView(model=gtk.ListStore(str, str, str))
         self.view.set_rules_hint(True)
         if os.path.isfile("uid_dictionary"):
-            udic = open("uid_dictionary")
-            self.view.udic = json.load(udic)
-            udic.close
+            try:
+                udic = open("uid_dictionary")
+                self.view.udic = json.load(udic)
+            except:
+                self.view.udic = {}
+            else:
+                udic.close
         else:
             self.view.udic = {}
+        if os.path.isfile("name_dictionary"):
+            try:
+                nmdic = open("name_dictionary")
+                self.view.nmdic = json.load(nmdic)
+            except:
+                self.view.nmdic = {}
+            else:
+                nmdic.close
+        else:
+            self.view.nmdic = {}
         # ツリービュー向けスクロールウィンドウ
         self.sw = gtk.ScrolledWindow()
         self.sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
@@ -204,7 +217,7 @@ class MainWindow(gtk.Window):
 
     def on_retake_activated(self, widget):
         self.proc.stdin.write("q")
-        subprocess.check_call(["./ochawan.py"])
+        subprocess.check_call(["./takeWak.py"])
         self.end_application(self)
 
     def on_reconn_activated(self, widget):
@@ -212,7 +225,7 @@ class MainWindow(gtk.Window):
 
     def on_view_changed(self, widget, event, data=None):
         adj = self.sw.get_vadjustment()
-        print adj.get_value()
+        print "on view at:" + str(adj.get_value())
         if adj.get_value() < 50:
             adj.set_value(0)
 
@@ -228,10 +241,10 @@ class MainWindow(gtk.Window):
         self.view.srv.takeComments(self.prependRow)
 
     def prependRow(self, no, uid, comm):
-        print comm
         if comm == "/disconnect\n":
-            self.proc.stdin.write("q")
-            print "disconnect"
+            if not self.proc is None:
+                self.proc.stdin.write("q")
+            print "disconnect ffmpeg"
         name = self.view.showName(uid)
         self.view.nmdic[name] = uid
         index = comm.find("@")
@@ -248,6 +261,10 @@ class MainWindow(gtk.Window):
         udic = open("uid_dictionary", "w")
         json.dump(self.view.udic, udic)
         udic.close
+
+        nmdic = open("name_dictionary", "w")
+        json.dump(self.view.nmdic, nmdic)
+        nmdic.close
 
         if not self.proc is None and self.proc.poll() is None:
             self.proc.stdin.write("q")
@@ -296,7 +313,7 @@ class CommGUI:
         win.view.srv.getPlayerStatus()
         win.view.srv.getToken()
         win.thread_start()
-        if len(sys.argv) == 2:
+        if len(sys.argv) == 3 and sys.argv[2] == 'publish':
             win.proc = subprocess.Popen("./ffnico.sh", stdin=subprocess.PIPE)
         win.show_all()
         gtk.main()

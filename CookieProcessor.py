@@ -1,13 +1,16 @@
 import sqlite3
 import cookielib
-import urllib2
+import urllib2, os
 
 
 class CookieProcessor:
     @classmethod
     def get(cls):
         home = os.environ['HOME']
-        firefox_db = home + "/.mozilla/firefox/aapkn9pp.default/cookies.sqlite"
+        for line in open(home + "/.mozilla/firefox/profiles.ini", 'r'):
+            if line.startswith("Path="):
+                profile = line[5:-1]
+        firefox_db = home + "/.mozilla/firefox/" + profile + "/cookies.sqlite"
         chrome_db = home + "/.config/google-chrome/Default/Cookies"
         firefox_sql = "select value from moz_cookies where baseDomain = 'nicovideo.jp' and name = 'user_session';"
         chrome_sql = "SELECT value FROM cookies WHERE host_key='.nicovideo.jp' AND name='user_session' LIMIT 1"

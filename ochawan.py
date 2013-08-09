@@ -31,4 +31,4 @@ if lvid == "":
     exit()
 
 check_call(["firefox", "http://live.nicovideo.jp/watch/" + lvid])
-check_call(["./CommGUI.py", lvid])
+check_call(["./CommGUI.py", lvid, 'publish'])
