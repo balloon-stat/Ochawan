@@ -73,9 +73,9 @@ class CommListView(gtk.TreeView):
         text = model.get_value(iterr, self.COLUMN_COMM)
         start = text.find("http://")
         end = text.find(" ")
-        if end == -1:
+        if end == -1 or start > end:
             end = text.find("　")
-        if end == -1:
+        if end == -1 or start > end:
             end = len(text)
         subprocess.call(["firefox", text[start:end]])
 
@@ -141,14 +141,12 @@ class MainWindow(gtk.Window):
         self.item_file = gtk.MenuItem('_File')
         self.item_speech = gtk.MenuItem('_Speech ON')
         self.item_publish = gtk.MenuItem('_Publish')
-        self.item_retake = gtk.MenuItem('_ReTake')
         self.item_reconn = gtk.MenuItem('_ReConnect')
         self.item_file.set_submenu(self.menu_file)
         self.menubar = gtk.MenuBar()
         self.menubar.append(self.item_file)
         self.menubar.append(self.item_speech)
         self.menubar.append(self.item_publish)
-        self.menubar.append(self.item_retake)
         self.menubar.append(self.item_reconn)
         # ツリービュー
         self.view = CommListView(model=gtk.ListStore(str, str, str))
@@ -187,7 +185,6 @@ class MainWindow(gtk.Window):
         self.item_quit.connect('activate', self.end_application)
         self.item_speech.connect('activate', self.on_speech_activated, self.item_speech)
         self.item_publish.connect('activate', self.on_publish_activated)
-        self.item_retake.connect('activate', self.on_retake_activated)
         self.item_reconn.connect('activate', self.on_reconn_activated)
         self.view.connect('size-allocate', self.on_view_changed)
         self.entry.connect("activate", self.on_entry_activated, self.entry)
@@ -214,11 +211,6 @@ class MainWindow(gtk.Window):
 
         self.thread_start()
         self.proc = subprocess.Popen("./ffnico.sh", stdin=subprocess.PIPE)
-
-    def on_retake_activated(self, widget):
-        self.proc.stdin.write("q")
-        subprocess.check_call(["./takeWak.py"])
-        self.end_application(self)
 
     def on_reconn_activated(self, widget):
         self.thread_start()
