@@ -48,7 +48,7 @@ void open(void) {
     SDL_PauseAudio(0);
     pPhont = file_load("aq.phont", &phont_size);
     if (pPhont == 0)
-        printf("Can not read aq.phont");
+        printf("Can not read aq.phont\n");
 }
 
 void close(void) {

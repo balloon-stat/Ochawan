@@ -20,7 +20,6 @@ class ConServer:
         self.postkey = ""
         self.token = ""
         self.bym = Bouyomi.Bouyomi()
-        self.uparser = UserNameParser()
         self.opener = urllib2.build_opener(CookieProcessor.get())
 
         self.lvid = lvid
@@ -75,8 +74,9 @@ class ConServer:
         try:
             url = "http://www.nicovideo.jp/user/" + uid
             res = self.opener.open(url).read()
-            self.uparser.feed(res.decode("utf-8"))
-            return self.uparser.name
+            uparser = UserNameParser()
+            uparser.feed(res.decode("utf-8"))
+            return uparser.name
         except urllib2.HTTPError:
             print "ユーザ名の取得に失敗しました"
             return None
@@ -162,7 +162,7 @@ class UserNameParser(HTMLParser):
             self.isname = False
 
     def handle_data(self, data):
-        if self.isname:
+        if self.isname and self.name == "":
             self.name = data
 
 class LvidParser(HTMLParser):
