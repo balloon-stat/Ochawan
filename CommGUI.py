@@ -82,7 +82,12 @@ class CommListView(gtk.TreeView):
     def on_profile_activated(self, widget):
         (model, iterr) = self.get_selection().get_selected()
         name = model.get_value(iterr, self.COLUMN_UID)
-        uid = self.nmdic[name]
+        if name.isdigit():
+            uid = name
+        elif self.nmdic.has_key(name):
+            uid = self.nmdic[name]
+        else:
+            return
         url = "http://www.nicovideo.jp/user/" + uid
         subprocess.call(["firefox", url])
 
@@ -128,6 +133,7 @@ class CommListView(gtk.TreeView):
 class MainWindow(gtk.Window):
     def __init__(self, *args, **kwargs):
         self.proc = None
+        self.auto = None
         gtk.Window.__init__(self, *args, **kwargs)
 
         self.entry = gtk.Entry()
@@ -213,6 +219,10 @@ class MainWindow(gtk.Window):
         self.proc = subprocess.Popen("./ffnico.sh", stdin=subprocess.PIPE)
 
     def on_reconn_activated(self, widget):
+        if not self.auto is None:
+            if self.auto.isAlive:
+                print "thread is alive"
+                return
         self.thread_start()
 
     def on_view_changed(self, widget, event, data=None):
@@ -264,9 +274,9 @@ class MainWindow(gtk.Window):
         return False
 
     def thread_start(self):
-        auto = threading.Thread(target=self.takeComms)
-        auto.setDaemon(True)
-        auto.start()
+        self.auto = threading.Thread(target=self.takeComms)
+        self.auto.setDaemon(True)
+        self.auto.start()
 
 class InputDialog(gtk.Dialog):
     def __init__(self, *args, **kwargs):

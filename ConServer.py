@@ -134,7 +134,7 @@ class ConServer:
                     self.bym.proc(text.encode("utf-8"))
                     self.count = int(elem.get("no"))
 
-
+#原宿バージョンとQバージョン両対応
 class UserNameParser(HTMLParser):
 
     def __init__(self):
@@ -148,8 +148,12 @@ class UserNameParser(HTMLParser):
             for i in attr:
                 if i[0] == "id" and i[1] == "headingUser":
                     self.isin = True
+                if i[0] == "class" and i[1] == "profile":
+                    self.isname = True
         elif tag == "strong" and self.isin:
             self.isname = True
+        elif tag == "small":
+            self.isname = False
 
     def handle_endtag(self, tag):
         if tag == "div":
