@@ -6,9 +6,9 @@ import sys
 import json
 import pygtk
 import gtk
-import threading
 import subprocess
-import ConServer
+from ConServer import ConServer
+from Bouyomi import Bouyomi
 
 class CommListView(gtk.TreeView):
     (
@@ -134,6 +134,7 @@ class MainWindow(gtk.Window):
     def __init__(self, *args, **kwargs):
         self.proc = None
         self.auto = None
+        self.bym = Bouyomi()
         gtk.Window.__init__(self, *args, **kwargs)
 
         self.entry = gtk.Entry()
@@ -147,13 +148,15 @@ class MainWindow(gtk.Window):
         self.item_file = gtk.MenuItem('_File')
         self.item_speech = gtk.MenuItem('_Speech ON')
         self.item_publish = gtk.MenuItem('_Publish')
-        self.item_reconn = gtk.MenuItem('_ReConnect')
+        self.item_resend = gtk.MenuItem('_ReSend')
+        self.item_retakec = gtk.MenuItem('_ReTakeComm')
         self.item_file.set_submenu(self.menu_file)
         self.menubar = gtk.MenuBar()
         self.menubar.append(self.item_file)
         self.menubar.append(self.item_speech)
         self.menubar.append(self.item_publish)
-        self.menubar.append(self.item_reconn)
+        self.menubar.append(self.item_resend)
+        self.menubar.append(self.item_retakec)
         # ツリービュー
         self.view = CommListView(model=gtk.ListStore(str, str, str))
         self.view.set_rules_hint(True)
@@ -191,7 +194,8 @@ class MainWindow(gtk.Window):
         self.item_quit.connect('activate', self.end_application)
         self.item_speech.connect('activate', self.on_speech_activated, self.item_speech)
         self.item_publish.connect('activate', self.on_publish_activated)
-        self.item_reconn.connect('activate', self.on_reconn_activated)
+        self.item_resend.connect('activate', self.on_resend_activated)
+        self.item_retakec.connect('activate', self.on_retakec_activated)
         self.view.connect('size-allocate', self.on_view_changed)
         self.entry.connect("activate", self.on_entry_activated, self.entry)
         # ウィンドウ
@@ -218,11 +222,13 @@ class MainWindow(gtk.Window):
         self.thread_start()
         self.proc = subprocess.Popen("./ffnico.sh", stdin=subprocess.PIPE)
 
-    def on_reconn_activated(self, widget):
-        if not self.auto is None:
-            if self.auto.isAlive:
-                print "thread is alive"
-                return
+    def on_resend_activated(self, widget):
+        self.auto.resend()
+
+    def on_retakec_activated(self, widget):
+        if self.auto.isAlive:
+            print "thread is alive"
+        print "thread is restart"
         self.thread_start()
 
     def on_view_changed(self, widget, event, data=None):
@@ -239,14 +245,13 @@ class MainWindow(gtk.Window):
         else:
             print res
 
-    def takeComms(self):
-        self.view.srv.takeComments(self.prependRow)
-
     def prependRow(self, no, uid, comm):
         if comm == "/disconnect\n":
+            self.bym.proc("終了しました\n")
             if not self.proc is None:
                 self.proc.stdin.write("q")
             print "disconnect ffmpeg"
+        self.bym.proc(comm.encode('utf-8'))
         name = self.view.showName(uid)
         self.view.nmdic[name] = uid
         index = comm.find("@")
@@ -274,7 +279,7 @@ class MainWindow(gtk.Window):
         return False
 
     def thread_start(self):
-        self.auto = threading.Thread(target=self.takeComms)
+        self.auto = self.view.srv.takeComments(self.prependRow)
         self.auto.setDaemon(True)
         self.auto.start()
 
@@ -295,11 +300,15 @@ class InputDialog(gtk.Dialog):
     def get_text(self):
         return self.entry.get_text()
 
+class DisconnectError(Exception):
+    def __str__(self):
+        return "Disconnect"
+
 class CommGUI:
 
     def main(self):
         win = MainWindow()
-        win.view.srv = ConServer.ConServer()
+        win.view.srv = ConServer()
 
         if sys.platform == "win32":
             gobject.threads_init()

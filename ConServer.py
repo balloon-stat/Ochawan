@@ -7,6 +7,8 @@ import subprocess
 import urllib
 import urllib2
 import socket
+import threading
+import asyncore
 import time
 from CookieProcessor import CookieProcessor
 from HTMLParser import HTMLParser
@@ -19,7 +21,6 @@ class ConServer:
         self.count = 0
         self.postkey = ""
         self.token = ""
-        self.bym = Bouyomi.Bouyomi()
         self.opener = urllib2.build_opener(CookieProcessor.get())
 
         self.lvid = lvid
@@ -95,44 +96,23 @@ class ConServer:
 
     def takeComments(self, proc=lambda no, uid, comm: None):
         host = socket.gethostbyname(self.addr)
-        sock = socket.socket()
-        sock.connect((host, int(self.port)))
-        sock.send("<thread thread=\"" + self.thread + "\" version=\"20061206\" res_from=\"-100\"/>\0")
+        return takeCommentThread(host, int(self.port), self.thread, proc)
 
-        prev = ""
-        while True:
-            res = sock.recv(1024)
-            if res.startswith("<chat") and res.endswith("</chat>"):
-                xml = res
-            else:
-                xml = prev + res
-                prev = ""
+class takeCommentThread(threading.Thread):
+    def __init__(self, host, port, thread, proc):
+        threading.Thread.__init__(self)
+        self.info = (host, port, thread)
+        self.proc = proc
 
-#<thread hoge />\0<chat>情報</chat>\0<chat>情報</chat>\0の形で受信する
-            for line in xml.split("\0"):
-                if line.startswith("<thread"):
-                    elem = fromstring(line)
-                    comticket = elem.findtext(".//ticket")
-                    srvtime = elem.findtext(".//sever_time")
-                    break
+    def run(self):
+        self.comc = CommClient(self.info, self.proc)
+        asyncore.loop()
 
-                if not line.endswith("</chat>"):
-                    prev = line
-                    break
+    def resend(self):
+        self.comc.resend()
 
-                if line.startswith("<chat_result"):
-                    break
-
-                if line.startswith("<chat"):
-                    elem = fromstring(line)
-                    text = elem.text + "\n"
-                    proc(elem.get("no"), elem.get("user_id"), text)
-                    if text == "/disconnect\n":
-                        self.bym.proc("終了しました")
-                        time.sleep(2)
-                        exit()
-                    self.bym.proc(text.encode("utf-8"))
-                    self.count = int(elem.get("no"))
+    def close(self):
+        self.comc.close()
 
 #原宿バージョンとQバージョン両対応
 class UserNameParser(HTMLParser):
@@ -178,10 +158,82 @@ class LvidParser(HTMLParser):
                     for j in attr:
                         if j[0] == "href":
                             self.lvid = j[1].replace("http://live.nicovideo.jp/watch/", "").replace("?ref=my_live", "")
+
+class CommClient(asyncore.dispatcher):
+    def __init__(self, info, proc):
+        asyncore.dispatcher.__init__(self)
+        (host, port, thread) = info
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect( (host, port) )
+        self.thread = thread
+        self.buf = "<thread thread=\"" + thread + "\" version=\"20061206\" res_from=\"-100\"/>\0"
+        self.prev = ""
+        self.proc = proc
+        self.count = 0
+
+    def resend(self):
+        self.buf = "<thread thread=\"" + self.thread + "\" version=\"20061206\" res_from=\"-1\"/>\0"
+
+    def handle_close(self):
+        print "close"
+        self.close()
+
+    def handle_read(self):
+        res = self.recv(1024)
+        if res.startswith("<chat") and res.endswith("</chat>"):
+            xml = res
+        else:
+            xml = self.prev + res
+            self.prev = ""
+
+#<thread hoge />\0<chat>情報</chat>\0<chat>情報</chat>\0の形で受信する
+        for line in xml.split("\0"):
+            if line.startswith("<thread"):
+                elem = fromstring(line)
+                comticket = elem.findtext(".//ticket")
+                srvtime = elem.findtext(".//sever_time")
+                continue
+
+            if not line.endswith("</chat>"):
+                self.prev = line
+                continue
+
+            if line.startswith("<chat_result"):
+                continue
+
+            if line.startswith("<chat"):
+                elem = fromstring(line)
+                text = elem.text + "\n"
+                self.proc(elem.get("no"), elem.get("user_id"), text)
+                if text == "/disconnect\n":
+                    time.sleep(2)
+                    self.close()
+                    return
+                self.count = int(elem.get("no"))
+                continue
+
+    def writable(self):
+        return (len(self.buf) > 0)
+
+    def handle_write(self):
+        sent = self.send(self.buf)
+        self.buf = self.buf[sent:]
+
 """
+bym = Bouyomi.Bouyomi()
+
+def proc(no, uid, text):
+    bym.proc(text.encode('utf-8'))
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print "use: ConServer.py lvxxxxxx"
     con = ConServer(sys.argv[1])
-    con.takeComments()
+    thread = con.takeComments(proc)
+    thread.start()
+    while True:
+        if raw_input() == 'q':
+            print "closing..."
+            thread.close()
+            break
 """
