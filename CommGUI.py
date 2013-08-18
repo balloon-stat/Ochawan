@@ -219,7 +219,8 @@ class MainWindow(gtk.Window):
         self.view.srv.getToken()
         self.view.srv.saveFmeXml(lvid)
 
-        self.thread_start()
+        if not self.auto.isAlive():
+            self.thread_start()
         self.proc = subprocess.Popen("./ffnico.sh", stdin=subprocess.PIPE)
 
     def on_resend_activated(self, widget):
